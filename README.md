@@ -130,6 +130,14 @@ This repository holds all the interesting and intriguing stuff that I feel, I sh
 ## 9. Declare multiple variables or multiple constsnts
    1. Variables:
         ```
+        var a, b, c, d int
+        ```
+        ```
+        //Type will be infered from the assignment values
+        var a, b, c, d int = 1, 2, 3, 5;
+        x, y, z := 1, true, "hello";
+        ```
+        ```
         var (
             ToBe   bool       = false
             MaxInt uint64     = 1<<64 - 1
@@ -138,5 +146,10 @@ This repository holds all the interesting and intriguing stuff that I feel, I sh
         ```
    2. Constants:
         ```
-
+        const (
+            ToBe   bool       = false
+            MaxInt uint64     = 1<<64 - 1
+            z      complex128 = cmplx.Sqrt(-5 + 12i)
+        )
         ```
+---
