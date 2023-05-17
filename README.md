@@ -156,7 +156,7 @@ This repository holds all the interesting and intriguing stuff that I feel, I sh
         )
         ```
 ---
-### B. Packages, Variables and functions
+### B. Flow Control statements: for, if, else, switch and defer
 ### 1. For
   - Go has only one looping construct, the for loop.
   - The normal for loop
@@ -255,4 +255,37 @@ This repository holds all the interesting and intriguing stuff that I feel, I sh
     //1
     ```
   - More on Defer - [Link](https://go.dev/blog/defer-panic-and-recover)
+---
+### C. More types: structs, slices, and maps
+  - Struct fields can be accessed through a struct pointer.
+    ```
+    type Vertex struct {
+        X int
+        Y int
+    }
+
+    func main() {
+        v := Vertex{1, 2}
+        p := &v
+        p.X = 1e9
+        fmt.Println(v)
+    }
+    ```
+  - The zero value of a slice is nil. A nil slice has a length and capacity of 0 and has no underlying array.
+    ```
+    func main() {
+        var s []int
+        fmt.Println(s, len(s), cap(s))
+        if s == nil {
+            fmt.Println("nil!")
+        }
+    }
+    ```
+  - Creating a slice with make
+    > a := make([]int, 5)
+  - Functions are values too. They can be passed around just like other values. Function values may be used as function arguments and return values.
+    - Go functions may be closures. A closure is a function value that references variables from outside its body (The scope of it's outer function is called **Lexical scope** and both the inner and outer function will be pointing towards the same memory address and not a copy. So, if even one of them updates it, the other will get affected). The function may access and assign to the referenced variables; in this sense the function is "bound" to the variables.
+    - Lexical scope refers to the ability of a function scope to access variables from the parent scope.
+  - We can use literas too to initialize Slices, Structs and Maps.
+---
 ---
