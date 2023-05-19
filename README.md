@@ -289,3 +289,240 @@ This repository holds all the interesting and intriguing stuff that I feel, I sh
   - We can use literas too to initialize Slices, Structs and Maps.
 ---
 ---
+## Methods and Interfaces
+  ### 1. Methods
+  - A method is a function with a special _receiver_ argument. The receiver appears in its own argument list between the func keyword and the method name.
+  - You can only declare a method with a receiver whose type is defined in the same package as the method. You cannot declare a method with a receiver whose type is defined in another package (which includes the built-in types such as int).
+  - There are basically two types of methods depending on top of receivers.
+    - Value receiver -> A copy of the value is sent to the method
+    - Pointer receiver -> The memory address of the real value is sent to the method
+  - **Methods and pointer indirection** => Functions that take a value argument must take a value of that specific type. While methods with pointer receivers take either a value or a pointer as the receiver when they are called.
+  - All methods on a given type should have either value or pointer receivers, but not a mixture of both.
+  ### 2. Interfaces
+  - An interface type is defined as a set of method signatures.
+  - A value of interface type can hold any value that implements those methods.
+  - A type implements an interface implicitly by implementing its methods. There is no explicit declaration of intent, no "implements" keyword.
+  - The empty interface: The interface type that specifies zero methods is known as the empty interface.
+    - > interface{}
+    - An empty interface may hold values of any type. (Every type implements at least zero methods.)
+    - Empty interfaces are used by code that handles values of unknown type. For example, fmt.Print takes any number of arguments of type interface{}.
+---
+---
+## Generics
+### 1. Type Parameters
+  - Go functions can be written to work on multiple types using type parameters. The type parameters of a function appear between brackets, before the function's arguments.
+    - > func Index[T comparable](s []T, x T) int
+    - This declaration means that s is a slice of any type T that fulfills the built-in constraint comparable. x is also a value of the same type.
+    - comparable is a useful constraint that makes it possible to use the == and != operators on values of the type. In this example, we use it to compare a value to all slice elements until a match is found. This Index function works for any type that supports comparison.
+        ```
+        package main
+
+        import "fmt"
+
+        // Index returns the index of x in s, or -1 if not found.
+        func Index[T comparable](s []T, x T) int {
+            for i, v := range s {
+                // v and x are type T, which has the comparable
+                // constraint, so we can use == here.
+                if v == x {
+                    return i
+                }
+            }
+            return -1
+        }
+
+        func main() {
+            // Index works on a slice of ints
+            si := []int{10, 20, 15, -10}
+            fmt.Println(Index(si, 15))
+
+            // Index also works on a slice of strings
+            ss := []string{"foo", "bar", "baz"}
+            fmt.Println(Index(ss, "hello"))
+        }
+        ```
+### 2. Generic types
+  - In addition to generic functions, Go also supports generic types. A type can be parameterized with a type parameter, which could be useful for implementing generic data structures.
+  - This example demonstrates a simple type declaration for a singly-linked list holding any type of value.
+    ```
+    package main
+    import "fmt"
+    // List represents a singly-linked list that holds
+    // values of any type.
+    type List[T any] struct {
+        next *List[T]
+        val  T
+    }
+
+    func main() {
+        list1 := List[int]{next: nil, val: 1}
+        list2 := List[int]{next: &list1, val: 2}
+        list3 := List[int]{next: &list2, val: 3}
+        fmt.Println(list3)
+        fmt.Println(*list3.next)
+        fmt.Println(*list3.next.next)
+    }
+
+    ```
+---
+---
+## Concurrency
+### Goroutines
+  - Goroutines run in the same address space, so access to shared memory must be synchronized. The sync package provides useful primitives, although you won't need them much in Go as there are other primitives.
+### Channels
+  - Channels are a typed conduit through which you can send and receive values with the channel operator, <-. By default, sends and receives block until the other side is ready. This allows goroutines to synchronize without explicit locks or condition variables.
+### Buffered Channels
+  - Channels can be buffered. Provide the buffer length as the second argument to make to initialize a buffered channel:
+    - > ch := make(chan int, 100)
+    - Sends to a buffered channel block only when the buffer is full. Receives block when the buffer is empty.
+        ```
+        package main
+
+        import "fmt"
+
+        func main() {
+            ch := make(chan int, 2)
+            ch <- 1
+            ch <- 2
+            fmt.Println(<-ch)
+            fmt.Println(<-ch)
+        }
+        //1
+        //2
+        ```
+### Range and Close
+  - A sender can close a channel to indicate that no more values will be sent. Receivers can test whether a channel has been closed by assigning a second parameter to the receive expression: after
+    - > v, ok := <-ch
+    - ok is false if there are no more values to receive and the channel is closed.
+        ```
+        package main
+
+        import (
+            "fmt"
+        )
+
+        func fibonacci(n int, c chan int) {
+            x, y := 0, 1
+            for i := 0; i < n; i++ {
+                c <- x
+                x, y = y, x+y
+            }
+            close(c)
+        }
+
+        func main() {
+            c := make(chan int, 10)
+            go fibonacci(cap(c), c)
+            for i := range c {
+                fmt.Println(i)
+            }
+        }
+        //0
+        //1
+        //1
+        //2
+        //3
+        //5
+        //8
+        //13
+        //21
+        //34
+        ```
+      - The loop for i := range c receives values from the channel repeatedly until it is closed.
+    - Only the sender should close a channel, never the receiver. Sending on a closed channel will cause a panic.
+    - Channels aren't like files; you don't usually need to close them. Closing is only necessary when the receiver must be told there are no more values coming, such as to terminate a range loop.
+### Select
+  - The select statement lets a goroutine wait on multiple communication operations.
+  - A select blocks until one of its cases can run, then it executes that case. It chooses one at random if multiple are ready.
+    ```
+    package main
+
+    import "fmt"
+
+    func fibonacci(c, quit chan int) {
+        x, y := 0, 1
+        for {
+            select {
+            case c <- x:
+                x, y = y, x+y
+            case <-quit:
+                fmt.Println("quit")
+                return
+            }
+        }
+    }
+
+    func main() {
+        c := make(chan int)
+        quit := make(chan int)
+        go func() {
+            for i := 0; i < 10; i++ {
+                fmt.Println(<-c)
+            }
+            quit <- 0
+        }()
+        fibonacci(c, quit)
+    }
+    ```
+  - The default case in a select is run if no other case is ready. Use a default case to try a send or receive without blocking:
+    ```
+    select {
+    case i := <-c:
+        // use i
+    default:
+        // receiving from c would block
+    }
+    ```
+  - Think of select as switch case of goroutines and channels.
+### stnc.Mutex
+  - We've seen how channels are great for communication among goroutines.
+  - But what if we don't need communication? What if we just want to make sure only one goroutine can access a variable at a time to avoid conflicts?
+  - This concept is called mutual exclusion, and the conventional name for the data structure that provides it is mutex.
+  - Go's standard library provides mutual exclusion with sync.Mutex and its two methods:
+    - Lock
+    - Unlock
+  - We can define a block of code to be executed in mutual exclusion by surrounding it with a call to Lock and Unlock as shown on the Inc method (code provided below).
+  - We can also use defer to ensure the mutex will be unlocked as in the Value method (code provided below).
+    ```
+    package main
+
+    import (
+        "fmt"
+        "sync"
+        "time"
+    )
+
+    // SafeCounter is safe to use concurrently.
+    type SafeCounter struct {
+        mu sync.Mutex
+        v  map[string]int
+    }
+
+    // Inc increments the counter for the given key.
+    func (c *SafeCounter) Inc(key string) {
+        c.mu.Lock()
+        // Lock so only one goroutine at a time can access the map c.v.
+        c.v[key]++
+        c.mu.Unlock()
+    }
+
+    // Value returns the current value of the counter for the given key.
+    func (c *SafeCounter) Value(key string) int {
+        c.mu.Lock()
+        // Lock so only one goroutine at a time can access the map c.v.
+        defer c.mu.Unlock()
+        return c.v[key]
+    }
+
+    func main() {
+        c := SafeCounter{v: make(map[string]int)}
+        for i := 0; i < 1000; i++ {
+            go c.Inc("somekey")
+        }
+
+        time.Sleep(time.Second)
+        fmt.Println(c.Value("somekey"))
+    }
+    ```
+---
+---
